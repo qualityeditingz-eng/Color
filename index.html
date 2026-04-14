@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pro Color Scanner</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+    }
+
+    .container {
+      position: relative;
+      width: 320px;
+      margin: auto;
+      margin-top: 20px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    /* 🎯 Center scan box */
+    .box {
+      position: absolute;
+      top: 42%;
+      left: 42%;
+      width: 50px;
+      height: 50px;
+      border: 3px solid yellow;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 20px;
+      color: lightgreen;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🎨 Place Color Inside Box</h2>
+
+<div class="container">
+  <video id="video" autoplay playsinline></video>
+  <div class="box"></div>
+</div>
+
+<button onclick="scanColor()">Scan</button>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div id="result">Waiting...</div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+
+// 📷 Start back camera
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment" }
+})
+.then(stream => video.srcObject = stream)
+.catch(() => {
+  document.getElementById("result").innerText = "❌ Camera not working";
+});
+
+// 🔥 RGB → HSV conversion
+function rgbToHsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+
+  let max = Math.max(r, g, b);
+  let min = Math.min(r, g, b);
+  let d = max - min;
+
+  let h = 0;
+
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+  }
+
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+
+  let s = max === 0 ? 0 : d / max;
+  let v = max;
+
+  return [h, s, v];
+}
+
+function scanColor() {
+  const ctx = canvas.getContext("2d");
+
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+
+  canvas.width = w;
+  canvas.height = h;
+
+  ctx.drawImage(video, 0, 0, w, h);
+
+  // 🎯 Small center area
+  let size = 40;
+  let x = (w / 2) - (size / 2);
+  let y = (h / 2) - (size / 2);
+
+  let data = ctx.getImageData(x, y, size, size).data;
+
+  let r = 0, g = 0, b = 0;
+  let count = data.length / 4;
+
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i+1];
+    b += data[i+2];
+  }
+
+  r /= count;
+  g /= count;
+  b /= count;
+
+  let [hue, sat, val] = rgbToHsv(r, g, b);
+
+  console.log("HSV:", hue, sat, val);
+
+  let detected = "UNKNOWN";
+
+  // 🎨 COLOR DETECTION (HIGH ACCURACY)
+
+  if (hue >= 40 && hue <= 65) detected = "YELLOW";
+
+  else if (hue >= 80 && hue <= 150) detected = "GREEN";
+
+  else if (hue >= 10 && hue <= 35) detected = "ORANGE";
+
+  else if (hue >= 300 || hue <= 10) detected = "PINK";
+
+  // 💖 Light pink adjustment
+  if (detected === "PINK" && val > 0.8 && sat < 0.4) {
+    detected = "LIGHT_PINK";
+  }
+
+  // 🎯 ACTIONS
+
+  let resultText = "❌ Unknown color";
+
+  if (detected === "YELLOW")
+    resultText = "🔥 DO 300 JUMPING JACKS EVERY DAY";
+
+  else if (detected === "GREEN")
+    resultText = "📚 STUDY FOR 1 HOUR";
+
+  else if (detected === "ORANGE")
+    resultText = "🏃 GO FOR A WALK";
+
+  else if (detected === "PINK")
+    resultText = "😴 TAKE REST";
+
+  else if (detected === "LIGHT_PINK")
+    resultText = "💧 DRINK WATER";
+
+  document.getElementById("result").innerText = resultText;
+}
+</script>
+
+</body>
+</html>
